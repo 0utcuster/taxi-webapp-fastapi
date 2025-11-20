@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Админ — Водители{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+    <div class="text-xl font-bold">Админ-панель</div>
+
+    <!-- Вкладки -->
+    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+      <a href="/admin/drivers" class="btn btn-secondary flex-1 sm:flex-none text-sm px-3 py-2">Водители</a>
+      <a href="/admin/couriers" class="btn btn-ghost flex-1 sm:flex-none text-sm px-3 py-2">Курьеры</a>
+      <a href="/board/moderation" class="btn btn-ghost flex-1 sm:flex-none text-sm px-3 py-2">Объявления</a>
+    </div>
+
+    <a href="{{ back_href or '/dashboard' }}" class="btn btn-ghost text-sm px-3 py-2">← Назад</a>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <!-- Профили на модерации -->
+    <div class="card rounded-2xl p-4 sm:p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+        <div class="text-base sm:text-lg font-bold">Профили на модерации (водители)</div>
+        <button id="btnRefreshProfiles" class="btn btn-ghost text-sm px-3 py-2">Обновить</button>
+      </div>
+      <div id="profilesBox" class="space-y-2 text-sm"></div>
+    </div>
+
+    <!-- Авто на верификации -->
+    <div class="card rounded-2xl p-4 sm:p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+        <div class="text-base sm:text-lg font-bold">Автомобили на верификации</div>
+        <button id="btnRefreshVehicles" class="btn btn-ghost text-sm px-3 py-2">Обновить</button>
+      </div>
+      <div id="vehiclesBox" class="space-y-2 text-sm"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const q = s => document.querySelector(s);
+  const qs = s => Array.from(document.querySelectorAll(s));
+  const api = async (url, opts) => {
+    const r = await fetch(url, Object.assign({credentials:'include', headers:{'Content-Type':'application/json'}}, opts||{}));
+    let j=null; try{ j=await r.json(); }catch(_){ throw new Error('bad_json'); }
+    if(!r.ok || j.ok===false) throw new Error(j.detail || j.error || 'error');
+    return j;
+  };
+  const card = (html) => `<div class="border rounded-xl p-3 sm:p-4 bg-white/70 dark:bg-slate-900/40 break-words">${html}</div>`;
+
+  async function refresh(){
+    const boxP = q('#profilesBox');  boxP.innerHTML = 'Загрузка...';
+    const boxV = q('#vehiclesBox');  boxV.innerHTML = 'Загрузка...';
+    try{
+      const data = await api('/api/admin/drivers/pending');
+      const profiles = data.profiles || [];
+      const vehicles = data.vehicles || [];
+
+      boxP.innerHTML = profiles.length ? profiles.map(p => card(`
+        <div class="font-semibold leading-tight">${p.full_name || '—'} <span class="opacity-60">#${p.user_id}</span></div>
+        <div class="text-xs opacity-70 mt-0.5">Телефон: ${p.phone || '—'}</div>
+        <div class="text-xs opacity-70 mt-0.5">Права: ${p.license_number || '—'} ${p.license_valid_to ? ('до ' + p.license_valid_to) : ''}</div>
+        <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <button class="btn btn-secondary text-sm px-3 py-2" data-approve-profile="${p.user_id}">Одобрить профиль</button>
+          <button class="btn btn-ghost text-sm px-3 py-2" data-reject-profile="${p.user_id}">Отклонить</button>
+          <button class="btn btn-primary text-sm px-3 py-2" data-approve-all="${p.user_id}">Одобрить всё</button>
+        </div>
+      `)).join('') : 'Нет профилей в очереди';
+
+      boxV.innerHTML = vehicles.length ? vehicles.map(v => card(`
+        <div class="font-semibold leading-tight">#${v.driver_id}</div>
+        <div>${[v.make, v.model].filter(Boolean).join(' ') || '—'} • ${v.color || '—'} • ${v.plate || '—'}</div>
+        ${v.photo_url ? `<img src="${v.photo_url}" class="mt-2 w-full max-w-xs rounded-xl object-cover">` : ''}
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <button class="btn btn-secondary text-sm px-3 py-2" data-verify-vehicle="${v.driver_id}">Верифицировать</button>
+          <button class="btn btn-ghost text-sm px-3 py-2" data-unverify-vehicle="${v.driver_id}">Снять верификацию</button>
+        </div>
+      `)).join('') : 'Нет автомобилей в очереди';
+
+      // actions
+      qs('[data-approve-profile]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-approve-profile');
+        await api(`/api/admin/drivers/${id}/approve_profile`, {method:'POST'});
+        await refresh();
+      });
+      qs('[data-reject-profile]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-reject-profile');
+        await api(`/api/admin/drivers/${id}/reject_profile`, {method:'POST'});
+        await refresh();
+      });
+      qs('[data-approve-all]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-approve-all');
+        await api(`/api/admin/drivers/${id}/approve_all`, {method:'POST'});
+        await refresh();
+      });
+      qs('[data-verify-vehicle]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-verify-vehicle');
+        await api(`/api/admin/drivers/${id}/verify_vehicle`, {method:'POST'});
+        await refresh();
+      });
+      qs('[data-unverify-vehicle]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-unverify-vehicle');
+        await api(`/api/admin/drivers/${id}/unverify_vehicle`, {method:'POST'});
+        await refresh();
+      });
+
+    }catch(e){
+      boxP.textContent = 'Ошибка: ' + (e.message || e);
+      boxV.textContent = 'Ошибка: ' + (e.message || e);
+    }
+  }
+
+  q('#btnRefreshProfiles').onclick = refresh;
+  q('#btnRefreshVehicles').onclick = refresh;
+  refresh();
+})();
+</script>
+{% endblock %}

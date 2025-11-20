@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Объявления — Village{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div class="text-xl font-bold">Объявления</div>
+    <a class="btn btn-ghost text-sm" href="{{ back_href or '/dashboard' }}">← Назад</a>
+  </div>
+
+  <!-- Создать -->
+  <div class="card rounded-2xl p-4 bg-white/70 dark:bg-slate-800/60">
+    <div class="grid gap-2 sm:grid-cols-2">
+      <input id="title" class="border rounded-xl p-3" placeholder="Заголовок *">
+      <input id="price" type="number" inputmode="numeric" min="0" class="border rounded-xl p-3" placeholder="Цена ₽ (необязательно)">
+      <input id="photo_url" class="sm:col-span-2 border rounded-xl p-3" placeholder="Ссылка на фото (URL)">
+      <input id="phone" class="sm:col-span-2 border rounded-xl p-3" placeholder="Телефон для связи (например, +79991234567)">
+      <textarea id="description" rows="3" class="sm:col-span-2 border rounded-xl p-3" placeholder="Описание"></textarea>
+    </div>
+    <div class="mt-3">
+      <button id="btnCreate" class="btn btn-primary">Опубликовать (на модерацию)</button>
+      <span id="createMsg" class="text-sm ml-3 opacity-75"></span>
+    </div>
+  </div>
+
+  <!-- Публичная лента -->
+  <div class="card rounded-2xl p-4 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex items-center justify-between">
+      <div class="text-lg font-bold">Публикации</div>
+      <button id="btnRefresh" class="btn btn-ghost text-sm">Обновить</button>
+    </div>
+    <div id="list" class="mt-3 grid gap-3 sm:grid-cols-2"></div>
+  </div>
+
+  <!-- Мои -->
+  <div class="card rounded-2xl p-4 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex items-center justify-between">
+      <div class="text-lg font-bold">Мои объявления</div>
+      <button id="btnMy" class="btn btn-ghost text-sm">Обновить</button>
+    </div>
+    <div id="my" class="mt-3 grid gap-3"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const q=s=>document.querySelector(s), qs=s=>Array.from(document.querySelectorAll(s));
+  const api = async (url, opts) => {
+    const r = await fetch(url, Object.assign({credentials:'include', headers:{'Content-Type':'application/json'}}, opts||{}));
+    let j=null; try{ j=await r.json(); }catch(_){ throw new Error('bad_json'); }
+    if(!r.ok || j.ok===false) throw new Error(j.detail||j.error||'error'); return j;
+  };
+  const card = (it)=> `
+    <div class="border rounded-xl p-3 bg-white/70 dark:bg-slate-900/40">
+      <div class="font-semibold">${it.title}</div>
+      ${it.photo_url ? `<img src="${it.photo_url}" class="mt-2 max-h-56 w-full object-cover rounded-lg">` : ``}
+      ${it.price!=null ? `<div class="mt-1">Цена: <b>${it.price} ₽</b></div>` : `<div class="mt-1 opacity-70">Договорная</div>`}
+      ${it.description ? `<div class="text-sm opacity-80 mt-1 whitespace-pre-wrap">${it.description}</div>` : ``}
+      ${it.phone ? `<div class="mt-2 text-sm">Телефон: <a class="underline" href="tel:${it.phone}">${it.phone}</a></div>` : ``}
+    </div>`;
+
+  async function load(){
+    const box=q('#list'); box.innerHTML='Загрузка...';
+    try{
+      const {items}=await api('/api/board/listings');
+      box.innerHTML = items.length ? items.map(card).join('') : 'Пока пусто';
+    }catch(e){ box.textContent='Ошибка: '+(e.message||e); }
+  }
+
+  async function loadMy(){
+    const box=q('#my'); box.innerHTML='Загрузка...';
+    try{
+      const {items}=await api('/api/board/my');
+      box.innerHTML = items.length ? items.map(x=>{
+        const status = x.rejected ? '❌ отклонено' : x.approved ? '✅ опубликовано' : '⏳ на модерации';
+        return `<div class="border rounded-xl p-3 bg-white/60 dark:bg-slate-900/40 ${x.approved? '' : 'opacity-70'}">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="font-semibold">#${x.id} • ${status}</div>
+              ${x.price!=null ? `<div class="text-sm mt-1">Цена: <b>${x.price} ₽</b></div>` : `<div class="text-sm mt-1 opacity-70">Договорная</div>`}
+              ${x.phone ? `<div class="text-xs mt-1">Телефон: <a class="underline" href="tel:${x.phone}">${x.phone}</a></div>` : ``}
+            </div>
+            <button class="btn btn-ghost text-sm" data-delete="${x.id}">Удалить</button>
+          </div>
+        </div>`;
+      }).join('') : 'Нет объявлений';
+      bindDelete();
+    }catch(e){ box.textContent='Ошибка: '+(e.message||e); }
+  }
+
+  function bindDelete(){
+    qs('[data-delete]').forEach(b=>b.onclick=async ()=>{
+      const id=b.getAttribute('data-delete');
+      if(!confirm('Удалить объявление #'+id+'?')) return;
+      try{
+        await api('/api/board/listings/'+id, {method:'DELETE'});
+        await loadMy(); // обновим список «Мои»
+      }catch(e){ alert(e.message||e); }
+    });
+  }
+
+  q('#btnCreate').onclick = async ()=>{
+    const payload = {
+      title: q('#title').value.trim(),
+      price: q('#price').value ? parseInt(q('#price').value,10): null,
+      photo_url: q('#photo_url').value.trim() || null,
+      phone: q('#phone').value.trim() || null,   // <- телефон добавлен
+      description: q('#description').value.trim() || null,
+    };
+    try{
+      await api('/api/board/listings', {method:'POST', body: JSON.stringify(payload)});
+      q('#createMsg').textContent='Отправлено на модерацию';
+      q('#title').value=''; q('#price').value=''; q('#photo_url').value=''; q('#description').value=''; q('#phone').value='';
+      loadMy();
+    }catch(e){ q('#createMsg').textContent = e.message||e; }
+  };
+
+  q('#btnRefresh').onclick = load;
+  q('#btnMy').onclick = loadMy;
+
+  document.addEventListener('DOMContentLoaded', ()=>{ load(); loadMy(); });
+})();
+</script>
+{% endblock %}

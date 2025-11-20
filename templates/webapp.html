@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebApp — профиль из Telegram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .avatar { width: 96px; height: 96px; border-radius: 9999px; object-fit: cover; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-md mx-auto p-6">
+    <div class="bg-white rounded-2xl shadow p-6 text-center">
+      <img id="avatar" class="avatar mx-auto mb-3 hidden" alt="avatar" />
+      <div class="text-xl font-semibold" id="name">Загрузка…</div>
+      <div class="text-gray-600" id="username"></div>
+      <div class="text-xs text-gray-400 mt-2" id="tgid"></div>
+
+      <div class="mt-6 text-left text-sm text-gray-700">
+        <div class="font-semibold mb-2">Что это:</div>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>Страница открыта как Telegram WebApp.</li>
+          <li>Берём имя и фото <em>только для отображения</em>.</li>
+          <li>Ничего не сохраняем и не требуем пароль.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+
+    function renderUser(u) {
+      const name = [u.first_name || '', u.last_name || ''].filter(Boolean).join(' ').trim();
+      document.getElementById('name').textContent = name || 'Без имени';
+      document.getElementById('username').textContent = u.username ? '@' + u.username : '';
+      document.getElementById('tgid').textContent = u.id ? 'Telegram ID: ' + u.id : '';
+      if (u.photo_url) {
+        const img = document.getElementById('avatar');
+        img.src = u.photo_url;
+        img.classList.remove('hidden');
+      }
+    }
+
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      renderUser(tg.initDataUnsafe.user);
+      tg.ready();
+    } else {
+      // фолбэк вне Telegram
+      renderUser({id: 0, first_name: 'Demo', last_name: 'User', username: 'demo'});
+    }
+  </script>
+</body>
+</html>

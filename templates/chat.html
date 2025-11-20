@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Общение{% endblock %}
+{% set back_href = '/dashboard' %}
+{% block content %}
+  <div class="card bg-white/80 dark:bg-white/5 rounded-3xl p-6">
+    <div class="text-center mb-3">
+      <div class="w-16 h-16 mx-auto mb-2 rounded-full bg-white/70 dark:bg-white/10 flex items-center justify-center text-3xl">💬</div>
+      <h1 class="text-xl font-bold">Общение</h1>
+      <p class="text-slate-500 text-sm">Общий чат посёлка</p>
+    </div>
+
+    <div id="chatBox" class="h-80 overflow-y-auto bg-white/60 dark:bg-white/10 rounded-xl p-3 space-y-2"></div>
+
+    <form id="chatForm" class="mt-3 flex gap-2">
+      <input name="text" class="flex-1 p-3 rounded-xl bg-white dark:bg-slate-800" placeholder="Сообщение..." required>
+      <button class="btn btn-primary px-4" type="submit">Отправить</button>
+    </form>
+    <div id="chatMsg" class="text-sm mt-2"></div>
+  </div>
+
+  <script>
+    (function () {
+      const box = document.getElementById('chatBox');
+      const form = document.getElementById('chatForm');
+      const msg  = document.getElementById('chatMsg');
+      let lastId = 0;
+      let loading = false;
+
+      function append(items) {
+        for (const m of items) {
+          const div = document.createElement('div');
+          div.className = "p-2 rounded-lg bg-white/80 dark:bg-white/10";
+          div.innerHTML = `<div class="text-xs opacity-60">${m.name}</div><div>${m.text}</div>`;
+          box.appendChild(div);
+          lastId = Math.max(lastId, m.id);
+        }
+        box.scrollTop = box.scrollHeight;
+      }
+
+      async function load(initial=false) {
+        if (loading) return;
+        loading = true;
+        try {
+          const url = lastId ? `/api/chat/messages?after_id=${lastId}` : '/api/chat/messages';
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data?.items?.length) append(data.items);
+          if (initial && !data?.items?.length) {
+            box.innerHTML = '<div class="opacity-60">Пока пусто</div>';
+          }
+        } catch (e) {
+          if (initial) box.innerHTML = '<div class="text-red-500">Ошибка загрузки чата</div>';
+        } finally { loading = false; }
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        const fd = new FormData(form);
+        const text = (fd.get('text')||'').trim();
+        if (!text) return;
+        form.querySelector('button').disabled = true;
+        try {
+          const res = await fetch('/api/chat/messages', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ text })
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(()=>({}));
+            throw new Error(j?.detail || j?.error || 'Ошибка отправки');
+          }
+          form.reset();
+          await load();
+        } catch (e) {
+          msg.textContent = String(e.message||e);
+        } finally {
+          form.querySelector('button').disabled = false;
+        }
+      });
+
+      load(true);
+      setInterval(load, 2500);
+    })();
+  </script>
+{% endblock %}

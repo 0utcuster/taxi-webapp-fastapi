@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Админ — Объявления{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+    <div class="text-xl font-bold">Админ-панель</div>
+    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+      <a href="/admin/drivers" class="btn btn-ghost text-sm">Водители</a>
+      <a href="/admin/couriers" class="btn btn-ghost text-sm">Курьеры</a>
+      <a href="/board/moderation" class="btn btn-secondary text-sm">Объявления</a>
+    </div>
+    <a href="{{ back_href or '/dashboard' }}" class="btn btn-ghost text-sm px-3 py-2">← Назад</a>
+  </div>
+
+  <div class="card rounded-2xl p-4 sm:p-5 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+      <div class="text-base sm:text-lg font-bold">Объявления на модерации</div>
+      <button id="btnRefresh" class="btn btn-ghost text-sm px-3 py-2">Обновить</button>
+    </div>
+    <div id="listingsBox" class="space-y-3 text-sm"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const q = s => document.querySelector(s);
+  const qs = s => Array.from(document.querySelectorAll(s));
+  const api = async (url, opts) => {
+    const r = await fetch(url, Object.assign({credentials:'include', headers:{'Content-Type':'application/json'}}, opts||{}));
+    let j=null; try{ j=await r.json(); }catch(_){ throw new Error('bad_json'); }
+    if(!r.ok || j.ok===false) throw new Error(j.detail || j.error || 'error');
+    return j;
+  };
+  const card = (html) => `<div class="border rounded-xl p-3 sm:p-4 bg-white/70 dark:bg-slate-900/40 break-words">${html}</div>`;
+  const formatPrice = v => v != null ? `<b>${v} ₽</b>` : `<span class="opacity-70">Договорная</span>`;
+
+  async function refresh(){
+    const box = q('#listingsBox'); box.innerHTML = 'Загрузка...';
+    try{
+      const data = await api('/api/board/moderation/pending');
+      const items = data.items || [];
+      box.innerHTML = items.length
+        ? items.map(it => card(`
+            <div class="font-semibold leading-tight">${it.title || '—'} <span class="opacity-60">#${it.id}</span></div>
+            ${it.photo_url ? `<img src="${it.photo_url}" class="mt-2 w-full max-h-56 object-cover rounded-xl" loading="lazy">` : ''}
+            <div class="text-sm mt-1">Цена: ${formatPrice(it.price)}</div>
+            ${it.description ? `<div class="text-xs opacity-80 mt-1 whitespace-pre-wrap">${it.description}</div>` : ''}
+            ${it.phone ? `<div class="text-xs mt-1">Телефон: <a class="underline" href="tel:${it.phone}">${it.phone}</a></div>` : ``}
+            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button class="btn btn-secondary text-sm px-3 py-2" data-approve="${it.id}">Одобрить</button>
+              <button class="btn btn-ghost text-sm px-3 py-2" data-reject="${it.id}">Отклонить</button>
+              <button class="btn btn-danger text-sm px-3 py-2" data-delete="${it.id}">Удалить</button>
+            </div>
+          `)).join('')
+        : 'Нет объявлений в очереди';
+
+      qs('[data-approve]').forEach(b => b.onclick = async ()=>{
+        await api(`/api/board/moderation/${b.getAttribute('data-approve')}/approve`, {method:'POST'}); await refresh();
+      });
+      qs('[data-reject]').forEach(b => b.onclick = async ()=>{
+        await api(`/api/board/moderation/${b.getAttribute('data-reject')}/reject`, {method:'POST'}); await refresh();
+      });
+      qs('[data-delete]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-delete');
+        if(!confirm('Удалить объявление #'+id+'?')) return;
+        await api(`/api/board/moderation/${id}/delete`, {method:'DELETE'}); await refresh();
+      });
+    }catch(e){
+      box.textContent = 'Ошибка: ' + (e.message || e);
+    }
+  }
+
+  q('#btnRefresh').onclick = refresh;
+  refresh();
+})();
+</script>
+{% endblock %}

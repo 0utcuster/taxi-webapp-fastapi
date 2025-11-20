@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Профиль{% endblock %}
+{% set back_href = '/dashboard' %}
+{% block content %}
+  <div class="card bg-white/80 dark:bg-white/5 rounded-3xl p-8 text-center">
+    <div class="relative w-28 h-28 mx-auto mb-4">
+      <img id="avatar"
+           class="w-28 h-28 rounded-full object-cover ring-4 ring-white/80 dark:ring-white/10 avatar-ring opacity-0 transition-opacity"
+           alt="avatar" />
+      <div id="avatarFallback"
+           class="absolute inset-0 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-3xl select-none">🙂</div>
+    </div>
+    <h1 id="displayName" class="text-2xl font-bold tracking-tight mb-1">Гость</h1>
+    <p class="text-slate-500 dark:text-slate-400 mb-6">Ваш профиль в приложении</p>
+
+    <div class="grid grid-cols-1 gap-3">
+      <a href="#" class="btn btn-ghost">Настройки</a>
+      <a href="#" class="btn btn-ghost">Поддержка</a>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const img = document.getElementById('avatar');
+      const fallback = document.getElementById('avatarFallback');
+      if (!img || !fallback) return;
+      img.addEventListener('load', () => {
+        if (img.src && !img.src.endsWith('#')) fallback.style.display = 'none';
+      });
+    })();
+  </script>
+{% endblock %}

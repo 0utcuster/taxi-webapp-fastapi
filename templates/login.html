@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+  <div class="mt-12 bg-white rounded-2xl shadow p-8">
+    <h1 class="text-2xl font-bold mb-2">Добро пожаловать!</h1>
+    <p class="text-gray-600 mb-6">Войдите через Telegram — без пароля.</p>
+
+    <form method="post" action="/auth/telegram" class="space-y-3">
+      <input type="hidden" name="id" id="tg_id" />
+      <input type="hidden" name="first_name" id="tg_first" />
+      <input type="hidden" name="last_name" id="tg_last" />
+      <input type="hidden" name="username" id="tg_user" />
+      <input type="hidden" name="auth_date" id="tg_auth_date" />
+      <input type="hidden" name="hash" id="tg_hash" />
+
+      <div id="tg-login-button"></div>
+      <div class="text-xs text-gray-500">Если виджет не загрузился, откройте страницу из Telegram.</div>
+
+      <button type="submit" class="px-4 py-2 rounded bg-black text-white">Войти</button>
+    </form>
+  </div>
+
+  <script async src="https://telegram.org/js/telegram-widget.js?22"
+          data-telegram-login="{{ bot_username|replace('@','') }}"
+          data-size="large" data-userpic="false" data-onauth="onTelegramAuth(user)"
+          data-request-access="write"></script>
+
+  <script>
+    function onTelegramAuth(user) {
+      document.getElementById('tg_id').value = user.id;
+      document.getElementById('tg_first').value = user.first_name || '';
+      document.getElementById('tg_last').value = user.last_name || '';
+      document.getElementById('tg_user').value = user.username || '';
+      document.getElementById('tg_auth_date').value = user.auth_date;
+      document.getElementById('tg_hash').value = user.hash;
+      document.forms[0].submit();
+    }
+  </script>
+{% endblock %}

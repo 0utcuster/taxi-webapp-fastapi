@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Доставка — Village{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Роль -->
+  <div class="card rounded-2xl p-4 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex gap-2">
+      <button id="btnRoleCustomer" class="btn btn-primary flex-1">Я клиент</button>
+      <button id="btnRoleCourier" class="btn btn-secondary flex-1">Я курьер</button>
+    </div>
+  </div>
+
+  <!-- Клиент -->
+  <div id="customerBlock" class="hidden space-y-4">
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="text-lg font-bold mb-3">Создать заказ</div>
+
+      <div class="grid grid-cols-1 gap-2">
+        <input id="title" class="border rounded-xl p-3" placeholder="Коротко: что купить/доставить *" required />
+        <textarea id="details" class="border rounded-xl p-3" rows="3" placeholder="Подробно: список покупок, комментарии"></textarea>
+        <input id="from_place" class="border rounded-xl p-3" placeholder="Где купить/забрать (необязательно)" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input id="to_street" class="border rounded-xl p-3" placeholder="Доставить на улицу" />
+          <input id="to_house"  class="border rounded-xl p-3" placeholder="Дом/кв" />
+        </div>
+        <input id="to_comment" class="border rounded-xl p-3" placeholder="Комментарий к адресу" />
+      </div>
+
+      <div class="mt-3 flex flex-wrap gap-2 items-stretch">
+        <select id="price_mode" class="border rounded-xl p-3 w-full sm:w-56">
+          <option value="client_sets">Я укажу цену</option>
+          <option value="courier_bids">Пусть предложат курьеры</option>
+        </select>
+        <input id="client_price" type="number" inputmode="numeric" min="0" class="border rounded-xl p-3 flex-1 sm:max-w-[220px]" placeholder="Моя цена ₽ (если фикс)" />
+        <button id="btnCreateOrder" class="btn btn-primary sm:ml-auto">Создать</button>
+      </div>
+      <div id="createMsg" class="text-sm mt-2"></div>
+    </div>
+
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">Мои заказы</div>
+        <button id="btnMyCustomer" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="myCustomerOrders" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- Курьер -->
+  <div id="courierBlock" class="hidden space-y-4">
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="text-lg font-bold">Статус курьера</div>
+      <div id="courierStatus" class="text-sm opacity-80 mt-1">Загрузка...</div>
+
+      <div class="mt-3 space-y-3">
+        <div class="font-semibold">Профиль</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <input id="full_name" class="border rounded-xl p-3" placeholder="ФИО" />
+          <input id="phone" class="border rounded-xl p-3" placeholder="Телефон" />
+          <input id="notes" class="md:col-span-2 border rounded-xl p-3" placeholder="Примечание (необязательно)" />
+        </div>
+        <button id="btnSubmitProfile" class="btn btn-primary mt-1">Отправить на модерацию</button>
+
+        <div class="mt-4 flex items-center gap-2">
+          <label class="text-sm opacity-80">Показывать меня в ленте</label>
+          <input type="checkbox" id="activeSwitch" />
+          <button id="btnToggleActive" class="btn btn-ghost text-sm">Сохранить статус</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">Лента заказов</div>
+        <button id="btnRefreshFeed" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="feed" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">Мои заказы (я курьер)</div>
+        <button id="btnMyCourier" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="myCourierOrders" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-4 z-50 hidden">
+  <div id="toastInner" class="px-4 py-2 rounded-xl shadow card bg-white/90 dark:bg-slate-800/90 text-sm"></div>
+</div>
+
+<script>
+(function(){
+  const q = s => document.querySelector(s);
+  const qs = s => Array.from(document.querySelectorAll(s));
+  const show = (el, v)=> el.classList.toggle('hidden', !v);
+  const toast = (text, ok=true)=>{
+    const b=q('#toast'), i=q('#toastInner');
+    i.textContent=text; i.classList.toggle('text-emerald-700', ok); i.classList.toggle('text-rose-700', !ok);
+    b.classList.remove('hidden'); clearTimeout(b._t); b._t=setTimeout(()=>b.classList.add('hidden'),1800);
+  };
+  async function api(url, opts){
+    const r = await fetch(url, Object.assign({credentials:'include', headers:{'Content-Type':'application/json'}}, opts||{}));
+    let j=null; try{ j=await r.json(); }catch(_){ j={ok:false,error:'bad_json'}; }
+    if(!r.ok || j.ok===false) throw new Error(j.detail||j.error||'error');
+    return j;
+  }
+  const T = {
+    isActive(s){ const v=(s||'').toLowerCase(); return ['new','assigned','on_way','in_progress'].includes(v); },
+    statusLabel(s){
+      switch((s||'').toLowerCase()){
+        case 'new': return 'новый';
+        case 'assigned': return 'назначен курьер';
+        case 'on_way': return 'курьер в пути';
+        case 'in_progress': return 'выполняется';
+        case 'completed': return 'завершён';
+        case 'cancelled': return 'отменён';
+        default: return s||'—';
+      }
+    },
+    priceLabel(o){
+      const v = o.final_price ?? o.client_price ?? o.price; return (v!=null?v:'?')+' ₽';
+    },
+    fmtTo(o){
+      return `${o.to?.street||''} ${o.to?.house||''} ${o.to?.comment?('('+o.to.comment+')'):''}`.trim();
+    }
+  };
+
+  // Роли
+  q('#btnRoleCustomer').onclick = ()=>{ show(q('#customerBlock'),true); show(q('#courierBlock'),false); renderMyCustomer(); };
+  q('#btnRoleCourier').onclick = ()=>{ show(q('#customerBlock'),false); show(q('#courierBlock'),true); loadCourier(); renderFeed(); renderMyCourier(); };
+
+  // Создать заказ
+  q('#btnCreateOrder').onclick = async ()=>{
+    const payload = {
+      title: q('#title').value.trim(),
+      details: q('#details').value.trim() || null,
+      from_place: q('#from_place').value.trim() || null,
+      to_street: q('#to_street').value.trim() || null,
+      to_house: q('#to_house').value.trim() || null,
+      to_comment: q('#to_comment').value.trim() || null,
+      price_mode: q('#price_mode').value,
+      client_price: q('#price_mode').value==='client_sets' && q('#client_price').value ? parseInt(q('#client_price').value,10) : null,
+    };
+    try{
+      await api('/api/delivery/orders', {method:'POST', body: JSON.stringify(payload)});
+      toast('Заказ создан'); q('#client_price').value=''; q('#title').value='';
+      renderMyCustomer();
+    }catch(e){ toast(e.message||e, false); }
+  };
+
+  // Мои заказы (клиент)
+  async function renderMyCustomer(){
+    const box = q('#myCustomerOrders'); box.innerHTML='Загрузка...';
+    try{
+      const {items} = await api('/api/delivery/orders?role=customer');
+      const active=[], hist=[];
+      for (const o of items){ (T.isActive(o.status) ? active : hist).push(o); }
+
+      box.innerHTML =
+        (active.length ? active.map(o => clientCard(o,false)).join('') : 'Активных заказов нет') +
+        (hist.length   ? `<div class="mt-4 opacity-70 space-y-2">${hist.map(o => clientCard(o,true)).join('')}</div>` : '');
+
+      // ВАЖНО: после вставки HTML привяжем клики
+      bindCustomerActions();
+    }catch(e){
+      box.textContent = 'Ошибка: ' + (e.message||e);
+    }
+  }
+  q('#btnMyCustomer').onclick = renderMyCustomer;
+    function bindCustomerActions(){
+    qs('[data-cancel]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.getAttribute('data-cancel');
+        try{
+          await api(`/api/delivery/orders/${id}/cancel`, {method:'POST', body: JSON.stringify({})});
+          toast('Заказ отменён');
+          renderMyCustomer();
+          if (typeof renderFeed === 'function') renderFeed();   // чтоб обновилась лента у курьеров
+        }catch(e){
+          toast(e.message||e, false);
+        }
+      };
+    });
+  }
+  function clientCard(o, dim){
+    return `
+    <div class="border rounded-2xl p-4 bg-white/80 dark:bg-slate-900/40 ${dim?'opacity-60 grayscale-[30%]':''}">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="font-semibold">#${o.id} • ${T.statusLabel(o.status)} • ${T.priceLabel(o)}</div>
+        ${T.isActive(o.status) ? `<button class="btn btn-ghost text-sm" data-cancel="${o.id}">Отменить</button>` : ``}
+      </div>
+      <div class="mt-2">${o.title || ''}</div>
+      ${o.details ? `<div class="text-xs opacity-80 mt-1">${o.details}</div>` : ``}
+      ${o.to?.street ? `<div class="mt-2 text-sm">Доставить: ${T.fmtTo(o)}</div>` : ``}
+    </div>`;
+  }
+
+  // Курьер: статус/профиль
+  async function loadCourier(){
+    const st=q('#courierStatus');
+    try{
+      const {profile} = await api('/api/delivery/courier/me');
+      const chunks=[];
+      if (profile.approved) chunks.push('одобрен ✅');
+      else if (profile.rejected) chunks.push('отклонён ❌');
+      else chunks.push('на модерации ⏳');
+      chunks.push(profile.active ? 'активен' : 'не активен');
+      st.textContent = chunks.join(' • ');
+      q('#full_name').value = profile.full_name||'';
+      q('#phone').value = profile.phone||'';
+      q('#notes').value = profile.notes||'';
+      const sw=q('#activeSwitch'); sw.checked=!!profile.active; sw.disabled=!profile.approved;
+    }catch(e){ st.textContent = 'Ошибка: '+(e.message||e); }
+  }
+  q('#btnSubmitProfile').onclick = async ()=>{
+    try{
+      await api('/api/delivery/courier/profile', {method:'POST', body: JSON.stringify({
+        full_name:q('#full_name').value, phone:q('#phone').value, notes:q('#notes').value
+      })});
+      await loadCourier(); toast('Профиль отправлен');
+    }catch(e){ toast(e.message||e,false); }
+  };
+  q('#btnToggleActive').onclick = async ()=>{
+    try{
+      await api('/api/delivery/courier/active', {method:'POST', body: JSON.stringify({active: q('#activeSwitch').checked})});
+      await loadCourier(); toast('Статус обновлён');
+    }catch(e){ toast(e.message||e,false); }
+  };
+
+  // Лента и мои (курьер)
+  async function renderFeed(){
+    const box=q('#feed'); if(!box) return; box.innerHTML='Загрузка...';
+    try{
+      const {items} = await api('/api/delivery/orders?role=feed');
+      if(!items.length){ box.textContent='Нет новых заказов'; return; }
+      box.innerHTML = items.map(o=>{
+        const isFixed = (o.price_mode||'')==='client_sets';
+        return `
+          <div class="border rounded-2xl p-4 bg-white/70 dark:bg-slate-900/40">
+            <div class="font-semibold">#${o.id} • ${isFixed ? ((o.client_price||'?')+' ₽') : 'ставки курьеров'}</div>
+            <div class="mt-1">${o.title||''}</div>
+            ${o.details ? `<div class="text-xs opacity-80">${o.details}</div>` : ``}
+            ${o.to?.street ? `<div class="mt-1 text-sm">Доставить: ${T.fmtTo(o)}</div>` : ``}
+            <div class="mt-3 flex flex-wrap gap-2 items-center">
+              <input class="border rounded-xl p-2 w-28" data-bid-price placeholder="Моя цена" inputmode="numeric">
+              <button class="btn btn-accent" data-bid="${o.id}">Ставка</button>
+              ${isFixed ? `<button class="btn btn-secondary" data-accept="${o.id}">Взять</button>` : ``}
+            </div>
+          </div>`;
+      }).join('');
+      qs('[data-bid]').forEach(b=>b.onclick=async ()=>{
+        const id=b.getAttribute('data-bid');
+        const price = parseInt(b.parentElement.querySelector('[data-bid-price]').value||'0',10);
+        if(!price) return toast('Укажите цену', false);
+        try{ await api(`/api/delivery/orders/${id}/bids`, {method:'POST', body: JSON.stringify({offered_price: price})}); toast('Ставка отправлена'); }
+        catch(e){ toast(e.message||e,false); }
+      });
+      qs('[data-accept]').forEach(b=>b.onclick=async ()=>{
+        const id=b.getAttribute('data-accept');
+        try{ await api(`/api/delivery/orders/${id}/accept`, {method:'POST', body: '{}'}); toast('Заказ принят'); renderFeed(); renderMyCourier(); }
+        catch(e){ toast(e.message||e,false); }
+      });
+    }catch(e){ box.textContent='Ошибка: '+(e.message||e); }
+  }
+  q('#btnRefreshFeed').onclick = renderFeed;
+
+  async function renderMyCourier(){
+    const box=q('#myCourierOrders'); if(!box) return; box.innerHTML='Загрузка...';
+    try{
+      const {items} = await api('/api/delivery/orders?role=courier');
+      box.innerHTML = items.length ? items.map(o=>courierCard(o)).join('') : 'Активных заказов нет';
+      bindCourierActions();
+    }catch(e){ box.textContent='Ошибка: '+(e.message||e); }
+  }
+  q('#btnMyCourier').onclick = renderMyCourier;
+
+  function courierCard(o){
+    const st=(o.status||'').toLowerCase();
+    const canOnWay      = ['assigned'].includes(st);
+    const canInProgress = ['assigned','on_way'].includes(st);
+    const canComplete   = ['in_progress','on_way'].includes(st);
+    return `
+      <div class="border rounded-2xl p-4 bg-white/70 dark:bg-slate-900/40">
+        <div class="font-semibold">#${o.id} • ${T.statusLabel(o.status)} • ${T.priceLabel(o)}</div>
+        <div class="mt-1">${o.title||''}</div>
+        ${o.details ? `<div class="text-xs opacity-80">${o.details}</div>` : ``}
+        ${o.to?.street ? `<div class="mt-1 text-sm">Доставить: ${T.fmtTo(o)}</div>` : ``}
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="btn btn-info text-sm" data-status="${o.id}" data-to="on_way" ${!canOnWay?'disabled':''}>Еду к клиенту</button>
+          <button class="btn btn-info text-sm" data-status="${o.id}" data-to="in_progress" ${!canInProgress?'disabled':''}>Выполняю</button>
+          <button class="btn btn-secondary text-sm" data-status="${o.id}" data-to="completed" ${!canComplete?'disabled':''}>Завершить</button>
+        </div>
+      </div>`;
+  }
+  function bindCourierActions(){
+    qs('[data-status]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id=btn.getAttribute('data-status');
+        const status=btn.getAttribute('data-to');
+        try{ await api(`/api/delivery/orders/${id}/status`, {method:'POST', body: JSON.stringify({status})}); renderMyCourier(); toast('Статус обновлён'); }
+        catch(e){ toast(e.message||e,false); }
+      };
+    });
+  }
+
+  // автообновление через SSE
+  function startStream(){
+    if (!!window.EventSource){
+      const es = new EventSource('/api/delivery/stream');
+      const refresh = debounce(()=>{ renderFeed(); renderMyCustomer(); renderMyCourier(); }, 250);
+      es.addEventListener('delivery_order_created',  refresh);
+      es.addEventListener('delivery_bid_created',   refresh);
+      es.addEventListener('delivery_order_assigned', refresh);
+      es.addEventListener('delivery_order_updated',  refresh);
+      es.onerror = () => {};
+    } else {
+      setInterval(()=>{ renderFeed(); renderMyCustomer(); renderMyCourier(); }, 4000);
+    }
+  }
+  function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+  document.addEventListener('DOMContentLoaded', ()=>{
+    show(q('#customerBlock'), true);
+    renderMyCustomer();
+    startStream();
+  });
+})();
+</script>
+{% endblock %}

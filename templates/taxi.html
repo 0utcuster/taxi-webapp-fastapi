@@ -1,0 +1,788 @@
+{% extends "base.html" %}
+{% block title %}Такси — Village{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Профиль -->
+  <div class="card rounded-2xl p-4 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex items-center gap-3">
+      <img id="avatar" alt="" class="w-12 h-12 rounded-full ring-2 ring-white/70 avatar-ring opacity-0 cursor-pointer" onclick="location.href='/profile'">
+      <div>
+        <div id="displayName" class="font-semibold text-lg">Гость</div>
+        <div class="text-xs opacity-70">Такси</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Роль -->
+  <div class="card rounded-2xl p-4 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex gap-2">
+      <button id="btnRoleClient" class="btn btn-primary flex-1">Я клиент</button>
+      <button id="btnRoleDriver" class="btn btn-secondary flex-1">Я водитель</button>
+    </div>
+  </div>
+
+  <!-- Клиент -->
+  <div id="clientBlock" class="hidden space-y-4">
+
+    <!-- Создать -->
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="text-lg font-bold mb-3">Создать поездку</div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <input id="from_street" class="border rounded-xl p-3" placeholder="Откуда: улица *" required />
+        <input id="from_house"  class="border rounded-xl p-3" placeholder="Дом" />
+        <input id="to_street"   class="border rounded-xl p-3" placeholder="Куда: улица *" required />
+        <input id="to_house"    class="border rounded-xl p-3" placeholder="Дом" />
+        <input id="from_comment" class="md:col-span-2 border rounded-xl p-3" placeholder="Комментарий (подъезд/двор)" />
+        <input id="to_comment"   class="md:col-span-2 border rounded-xl p-3" placeholder="Комментарий к месту" />
+      </div>
+
+      <!-- Цена — компактно и адаптивно -->
+      <div class="mt-3 flex flex-wrap gap-2 items-stretch">
+        <select id="price_mode" class="border rounded-xl p-3 w-full sm:w-56">
+          <option value="client_sets">Я укажу цену</option>
+          <option value="driver_bids">Пусть предложат водители</option>
+        </select>
+        <input id="client_price" type="number" inputmode="numeric" min="0" class="border rounded-xl p-3 flex-1 sm:max-w-[220px]" placeholder="Моя цена ₽ (если фикс)" />
+        <button id="btnCreateTrip" class="btn btn-primary sm:ml-auto">Создать</button>
+      </div>
+
+      <div id="createTripMsg" class="text-sm mt-2"></div>
+    </div>
+
+    <!-- Мои поездки -->
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">Мои поездки</div>
+        <button id="btnMyClient" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="myClientTrips" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+
+    <!-- История -->
+    <div id="clientHistoryCard" class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60 hidden">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">История</div>
+        <button id="btnMyClientHistory" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="myClientTripsHistory" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+
+  </div>
+
+  <!-- Водитель -->
+  <div id="driverBlock" class="hidden space-y-4">
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="text-lg font-bold">Статус водителя</div>
+      <div id="driverStatus" class="text-sm opacity-80 mt-1">Загрузка...</div>
+
+      <div id="driverForms" class="mt-3 space-y-3">
+        <div class="font-semibold">Профиль</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <input id="full_name" class="border rounded-xl p-3" placeholder="ФИО" />
+          <input id="phone" class="border rounded-xl p-3" placeholder="Телефон" />
+          <input id="license_number" class="border rounded-xl p-3" placeholder="№ прав" />
+          <input id="license_valid_to" class="border rounded-xl p-3" placeholder="Действительно до (ГГГГ-ММ-ДД)" />
+          <input id="notes" class="md:col-span-2 border rounded-xl p-3" placeholder="Примечание (необязательно)" />
+        </div>
+        <button id="btnSubmitProfile" class="btn btn-primary mt-1">Отправить на проверку</button>
+
+        <div class="font-semibold mt-4">Автомобиль</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <input id="make" class="border rounded-xl p-3" placeholder="Марка" />
+          <input id="model" class="border rounded-xl p-3" placeholder="Модель" />
+          <input id="color" class="border rounded-xl p-3" placeholder="Цвет" />
+          <input id="plate" class="border rounded-xl p-3" placeholder="Номер" />
+          <input id="seats" type="number" inputmode="numeric" min="1" class="border rounded-xl p-3" placeholder="Мест" />
+          <input id="photo_url" class="border rounded-xl p-3" placeholder="Фото (URL)" />
+        </div>
+        <button id="btnSaveVehicle" class="btn btn-secondary mt-1">Сохранить авто</button>
+
+        <div class="mt-4 flex items-center gap-2">
+          <label class="text-sm opacity-80">Показывать меня в ленте</label>
+          <input type="checkbox" id="activeSwitch" />
+          <button id="btnToggleActive" class="btn btn-ghost text-sm">Сохранить статус</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Лента -->
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">Лента заказов</div>
+        <button id="btnRefreshFeed" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="feed" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+
+    <!-- Мои поездки (водитель) -->
+    <div class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">Мои поездки (я водитель)</div>
+        <button id="btnMyDriver" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="myDriverTrips" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+
+    <!-- История водителя -->
+    <div id="driverHistoryCard" class="card rounded-2xl p-5 bg-white/70 dark:bg-slate-800/60 hidden">
+      <div class="flex items-center justify-between">
+        <div class="text-lg font-bold">История (я водитель)</div>
+        <button id="btnMyDriverHistory" class="btn btn-ghost text-sm">Обновить</button>
+      </div>
+      <div id="myDriverTripsHistory" class="mt-3 space-y-2 text-sm"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Тост -->
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-4 z-50 hidden">
+  <div id="toastInner" class="px-4 py-2 rounded-xl shadow card bg-white/90 dark:bg-slate-800/90 text-sm"></div>
+</div>
+
+<!-- Модалка «Инфо о водителе» -->
+<div id="driverModal" class="fixed inset-0 bg-black/40 z-50 hidden">
+  <div class="max-w-sm mx-auto mt-24 p-4 rounded-2xl card bg-white/95 dark:bg-slate-900/95">
+    <div class="flex items-center justify-between mb-2">
+      <div class="font-semibold">Информация о водителе</div>
+      <button id="driverModalClose" class="btn btn-ghost text-sm">Закрыть</button>
+    </div>
+    <div id="driverModalBody" class="space-y-2 text-sm">
+      <!-- контент подставляется из JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const q = sel => document.querySelector(sel);
+  const qs = sel => Array.from(document.querySelectorAll(sel));
+  const show = (el, v)=> el.classList.toggle('hidden', !v);
+  const setMsg = (el, text, ok=true)=>{ el.textContent=text; el.className='text-sm mt-2 ' + (ok?'text-emerald-600':'text-rose-600'); };
+  const toast = (text, ok=true)=>{
+    const box=q('#toast'), inner=q('#toastInner');
+    inner.textContent = text;
+    inner.classList.toggle('text-emerald-700', ok);
+    inner.classList.toggle('text-rose-700', !ok);
+    box.classList.remove('hidden'); clearTimeout(box._t);
+    box._t=setTimeout(()=>box.classList.add('hidden'), 1800);
+  };
+
+  const T = {
+    statusLabel(s){
+      switch((s||'').toLowerCase()){
+        case 'new': return 'новая';
+        case 'assigned': return 'назначен водитель';
+        case 'on_way': return 'едет к вам';
+        case 'in_progress': return 'в пути';
+        case 'completed': return 'завершена';
+        case 'cancelled': return 'отменена';
+        default: return s || 'неизвестно';
+      }
+    },
+    isActiveStatus(s){
+      const v=(s||'').toLowerCase();
+      return ['new','assigned','on_way','in_progress'].includes(v);
+    },
+    priceLabel(t){
+      const v = t.final_price ?? t.client_price ?? t.driver_price ?? t.price;
+      return (v!=null ? v : '?') + ' ₽';
+    },
+    fmtFrom(t){
+      if (t.from) return `${t.from.street||''} ${t.from.house||''} ${t.from.comment?('('+t.from.comment+')'):''}`.trim();
+      return `${t.from_address||''}`.trim();
+    },
+    fmtTo(t){
+      if (t.to) return `${t.to.street||''} ${t.to.house||''} ${t.to.comment?('('+t.to.comment+')'):''}`.trim();
+      return `${t.to_address||''}`.trim();
+    }
+  };
+
+  async function api(url, opts){
+    const r = await fetch(url, Object.assign({headers:{'Content-Type':'application/json'}, credentials:'include'}, opts||{}));
+    let j = null;
+    try { j = await r.json(); } catch(_) { j = {ok:false, error:'bad_json'}; }
+    if(!r.ok || j.ok===false){ throw new Error(j.detail || j.error || JSON.stringify(j)); }
+    return j;
+  }
+
+  // Роли
+  q('#btnRoleClient').onclick = ()=>{ show(q('#clientBlock'), true); show(q('#driverBlock'), false); renderMyClient(); renderMyClientHistory(); };
+  q('#btnRoleDriver').onclick = ()=>{ show(q('#clientBlock'), false); show(q('#driverBlock'), true); loadDriver(); renderFeed(); renderMyDriver(); renderMyDriverHistory(); };
+
+  // --- Клиент: создать
+  q('#btnCreateTrip').onclick = async (ev)=>{
+    const btn = ev.currentTarget;
+    const payload = {
+      from_street: q('#from_street').value.trim(),
+      from_house: q('#from_house').value.trim() || null,
+      from_comment: q('#from_comment').value.trim() || null,
+      to_street: q('#to_street').value.trim(),
+      to_house: q('#to_house').value.trim() || null,
+      to_comment: q('#to_comment').value.trim() || null,
+      price_mode: q('#price_mode').value,
+      client_price: q('#price_mode').value==='client_sets' && q('#client_price').value ? parseInt(q('#client_price').value,10) : null,
+    };
+    const msg = q('#createTripMsg');
+    if(!payload.from_street || !payload.to_street){
+      setMsg(msg,'Укажите улицу отправления и назначения.', false);
+      return;
+    }
+    try{
+      btn.disabled = true;
+      const res = await api('/api/taxi/trips', {method:'POST', body: JSON.stringify(payload)});
+      const id = res.trip && res.trip.id;
+      setMsg(msg, id ? ('Заявка создана #' + id) : 'Заявка создана');
+      q('#client_price').value = '';
+      await renderMyClient();
+      toast('Поездка создана');
+    }catch(e){ setMsg(msg, String(e.message||e), false); toast('Ошибка: '+(e.message||e), false); }
+    finally{ btn.disabled = false; }
+  };
+
+  // Список ставок конкретной заявки
+  async function fetchTripBids(tripId){
+    try{
+      const res = await api(`/api/taxi/trips/${tripId}/bids`);
+      const items = Array.isArray(res.items) ? res.items : [];
+
+      // нормализуем поля вне зависимости от бэкенда
+      return items.map(x => ({
+        id:               x.bid_id ?? x.id,
+        offered_price:    x.offered_price ?? x.price,
+        driver_name:      (x.driver?.name) ?? x.driver_name ?? 'Водитель',
+        driver_photo_url: (x.driver?.photo_url) ?? x.driver_photo_url ?? '',
+      })).filter(b => b.id && b.offered_price);
+    }catch(_){
+      return [];
+    }
+  }
+
+  function buildBidsHtml(bids){
+    // SVG-заглушка-аватар (закодирована, чтобы не было проблем с кавычками)
+    const PLACEHOLDER_AVA =
+      'data:image/svg+xml;utf8,' +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+          <rect width="64" height="64" rx="32" fill="#cbd5e1"/>
+          <circle cx="32" cy="26" r="12" fill="#e2e8f0"/>
+          <rect x="14" y="42" width="36" height="14" rx="7" fill="#e2e8f0"/>
+        </svg>
+      `);
+
+    // чистим лишние кавычки/пробелы, возвращаем пустую строку для фолбэка
+    const sanitizeUrl = (u)=>{
+      if (!u) return '';
+      u = String(u).trim();
+      // иногда url приходят в виде '"https://..."'
+      if ((u.startsWith('"') && u.endsWith('"')) || (u.startsWith("'") && u.endsWith("'"))) {
+        u = u.slice(1, -1);
+      }
+      return u;
+    };
+
+    if (!Array.isArray(bids) || !bids.length){
+      return `
+        <div class="mt-3 rounded-2xl border p-3 bg-white/60 dark:bg-slate-900/40">
+          <div class="text-sm opacity-70">Пока предложений нет</div>
+        </div>`;
+    }
+
+    const rows = bids.map(b => {
+      const src  = sanitizeUrl(b.driver_photo_url) || PLACEHOLDER_AVA;
+      const name = (b.driver_name || 'Водитель')
+        .replace(/</g,'&lt;').replace(/>/g,'&gt;'); // на всякий случай
+
+      return `
+        <div class="rounded-2xl border p-3 bg-white/70 dark:bg-slate-900/40">
+          <div class="grid grid-cols-[44px,1fr] gap-3 items-center">
+            <img
+              src="${src}"
+              loading="lazy"
+              class="w-11 h-11 rounded-full object-cover bg-slate-200 border border-slate-200 dark:border-slate-700 shrink-0"
+              onerror="this.onerror=null;this.src='${PLACEHOLDER_AVA}'"
+              alt=""
+            >
+            <div class="min-w-0">
+              <div class="truncate font-medium leading-5">${name}</div>
+              <div class="font-semibold text-emerald-700 text-base">${b.offered_price} ₽</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary w-full mt-2 text-sm" data-accept-bid="${b.id}">
+            Согласиться
+          </button>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="mt-3 rounded-2xl border p-3 bg-white/60 dark:bg-slate-900/40">
+        <div class="font-semibold mb-2">Предложения водителей</div>
+        <div class="space-y-2">
+          ${rows}
+        </div>
+      </div>`;
+  }
+
+    // чистим кавычки вокруг url, если они пришли из БД ("https://...") или ('https://...')
+    function sanitizeUrl(u){
+      if (!u) return '';
+      u = String(u).trim();
+      if ((u.startsWith('"') && u.endsWith('"')) || (u.startsWith("'") && u.endsWith("'"))) {
+        u = u.slice(1, -1);
+      }
+      return u;
+    }
+
+    function renderBidRow(b){
+      const srcRaw = sanitizeUrl(b.driver_photo_url);
+      const src = srcRaw ? srcRaw : PLACEHOLDER_AVA;
+
+      return `
+        <div class="rounded-2xl border p-3 bg-white/70 dark:bg-slate-900/40">
+          <div class="grid grid-cols-[44px,1fr] gap-3 items-start">
+            <img
+              src="${src}"
+              data-fallback="${PLACEHOLDER_AVA}"
+              loading="lazy"
+              class="w-11 h-11 rounded-full object-cover bg-slate-200 border border-slate-200 dark:border-slate-700"
+              onerror="this.onerror=null;this.src=this.dataset.fallback"
+              alt=""
+            >
+            <div class="min-w-0">
+              <div class="text-sm font-medium leading-5 break-words">${b.driver_name}</div>
+              <div class="text-xs opacity-70">Предложение: <span class="font-semibold">${b.offered_price} ₽</span></div>
+              <button
+                class="btn btn-secondary text-sm w-full mt-2"
+                data-accept-bid="${b.id}">
+                Согласиться
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+  function renderProgress(t){
+    // компактная «линейка» с переносом
+    const s = (t.status||'').toLowerCase();
+    const steps = ['new','assigned','on_way','in_progress','completed'];
+    const idx = Math.max(0, steps.indexOf(s));
+    return `
+      <div class="mt-2">
+        <div class="flex flex-wrap items-center gap-2 text-[11px] leading-4">
+          ${steps.map((st,i)=>`
+            <div class="flex items-center gap-2">
+              <div class="h-1.5 w-8 rounded ${i<=idx ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}"></div>
+              <span class="${i<=idx ? 'opacity-100' : 'opacity-50'}">${T.statusLabel(st)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function driverInfoFromTrip(t){
+    const driver = t.driver || t.assigned_driver || null;
+    const vehicle = t.vehicle || t.assigned_vehicle || null;
+    const name = driver?.name || driver?.full_name || driver?.username || 'Водитель';
+    const phone = driver?.phone || '';
+    const car = vehicle ? `${vehicle.make||''} ${vehicle.model||''} • ${vehicle.color||''} • ${vehicle.plate||''}`.replace(/\s+/g,' ').trim() : '';
+    const photo = vehicle?.photo_url || driver?.photo_url || '';
+    return {name, phone, car, photo};
+  }
+
+  function badge(status){
+    const cls = {
+      new:'bg-amber-500', assigned:'bg-sky-500', on_way:'bg-indigo-500',
+      in_progress:'bg-blue-600', completed:'bg-emerald-600', cancelled:'bg-rose-500'
+    }[(status||'').toLowerCase()] || 'bg-slate-500';
+    return `<span class="px-2 py-0.5 rounded-full text-white text-[11px] ${cls}">${T.statusLabel(status)}</span>`;
+  }
+
+  function renderClientCard(t, dim=false){
+    const driver = driverInfoFromTrip(t);
+    const hasDriver = !!(t.driver || t.vehicle);
+    const infoBtn = hasDriver ? `<button class="btn btn-info text-xs" data-show-driver="${t.id}">Инфо о водителе</button>` : '';
+    return `
+      <div class="border rounded-2xl p-4 bg-white/80 dark:bg-slate-900/40 transition ${dim?'opacity-60':''}">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="font-semibold">#${t.id} • ${badge(t.status)} • ${T.priceLabel(t)}</div>
+          <div class="flex gap-2">
+            ${infoBtn}
+            ${T.isActiveStatus(t.status) ? `<button class="btn btn-ghost text-sm" data-cancel="${t.id}">Отменить</button>` : ''}
+          </div>
+        </div>
+
+        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="rounded-xl p-3 bg-white/70 dark:bg-slate-800/60">
+            <div class="text-xs opacity-60 mb-1">Откуда</div>
+            <div class="font-medium">${T.fmtFrom(t)}</div>
+          </div>
+          <div class="rounded-xl p-3 bg-white/70 dark:bg-slate-800/60">
+            <div class="text-xs opacity-60 mb-1">Куда</div>
+            <div class="font-medium">${T.fmtTo(t)}</div>
+          </div>
+        </div>
+
+        ${renderProgress(t)}
+
+        ${t._bidsHtml || ''}
+      </div>
+    `;
+  }
+
+  // Клиент: списки
+  async function renderMyClient(){
+    const box = q('#myClientTrips'); box.innerHTML = skeletonList(2);
+    try{
+      const {items} = await api('/api/taxi/trips?role=client');
+      const active = [], history = [];
+      for (const t of items){
+        if ((t.price_mode || '').toLowerCase() === 'driver_bids' && (t.status || '').toLowerCase() === 'new'){
+          const bids = await fetchTripBids(t.id);
+          t._bidsHtml = buildBidsHtml(bids);
+        }
+        (T.isActiveStatus(t.status) ? active : history).push(t);
+      }
+
+      box.innerHTML = active.length
+        ? active.map(t=>renderClientCard(t,false)).join('')
+        : 'Активных поездок нет';
+
+      // история
+      const histCard = q('#clientHistoryCard');
+      const histBox  = q('#myClientTripsHistory');
+      if (history.length){
+        show(histCard, true);
+        histBox.innerHTML = history.map(t=>renderClientCard(t,true)).join('');
+      } else {
+        show(histCard, false);
+        histBox.innerHTML = '';
+      }
+
+      // действие: отмена
+      qs('[data-cancel]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          try{ await api(`/api/taxi/trips/${btn.getAttribute('data-cancel')}/cancel`, {method:'POST'}); await renderMyClient(); toast('Поездка отменена'); }
+          catch(e){ toast(e.message||e, false); }
+        };
+      });
+      // принять ставку
+      qs('[data-accept-bid]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const bidId = btn.getAttribute('data-accept-bid');
+          try{
+            await api(`/api/taxi/bids/${bidId}/accept`, {method:'POST'});
+            await renderMyClient();
+            toast('Водитель назначен');
+          }catch(e){ toast(e.message||e, false); }
+        };
+      });
+      // модалка «Инфо о водителе»
+      qs('[data-show-driver]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const tripId = btn.getAttribute('data-show-driver');
+          try{
+            const {driver, vehicle} = (await api(`/api/taxi/trips/${tripId}/driver`));
+            const body = q('#driverModalBody');
+            body.innerHTML = `
+              <div class="flex items-center gap-3">
+                ${driver.photo_url ? `<img src="${driver.photo_url}" class="w-12 h-12 rounded-xl object-cover">` : `<div class="w-12 h-12 rounded-xl bg-slate-200"></div>`}
+                <div>
+                  <div class="font-semibold">${driver.name||'Водитель'}</div>
+                  ${driver.phone ? `<a class="text-xs text-sky-600" href="tel:${driver.phone}">${driver.phone}</a>` : ``}
+                </div>
+              </div>
+              ${vehicle ? `
+              <div class="mt-3 text-sm">
+                <div class="opacity-70">Автомобиль</div>
+                <div class="font-medium">${[vehicle.make, vehicle.model].filter(Boolean).join(' ')}</div>
+                <div>${[vehicle.color, vehicle.plate].filter(Boolean).join(' • ')}</div>
+                ${vehicle.photo_url ? `<img src="${vehicle.photo_url}" class="mt-2 w-full rounded-xl object-cover">` : ``}
+              </div>` : ``}
+            `;
+            show(q('#driverModal'), true);
+          }catch(e){ toast(e.message||e, false); }
+        };
+      });
+    }catch(e){ box.textContent='Ошибка: '+(e.message||e); }
+  }
+  q('#btnMyClient').onclick = renderMyClient;
+  q('#btnMyClientHistory').onclick = renderMyClient;
+
+  // закрытие модалки
+  q('#driverModalClose').onclick = ()=> show(q('#driverModal'), false);
+  q('#driverModal').onclick = (ev)=>{ if(ev.target.id==='driverModal') show(q('#driverModal'), false); };
+
+  // --- Водитель: статус/формы
+  async function loadDriver(){
+    const st = q('#driverStatus');
+    const feedCard     = q('#feed')?.closest('.card');
+    const myTripsCard  = q('#myDriverTrips')?.closest('.card');
+    const myHistCard   = q('#driverHistoryCard');
+
+    try{
+      const { profile, vehicle } = await api('/api/taxi/driver/me');
+
+      const chunks = [];
+      if (profile.approved)       chunks.push('одобрен ✅');
+      else if (profile.rejected)  chunks.push('отклонён ❌');
+      else                        chunks.push('на модерации ⏳');
+      chunks.push(profile.active ? 'активен (виден в ленте)' : 'не активен (скрыт)');
+      st.textContent = chunks.join(' • ');
+
+      q('#full_name').value         = profile.full_name       || '';
+      q('#phone').value             = profile.phone           || '';
+      q('#license_number').value    = profile.license_number  || '';
+      q('#license_valid_to').value  = profile.license_valid_to|| '';
+      q('#notes').value             = profile.notes           || '';
+
+      if (vehicle){
+        q('#make').value      = vehicle.make      || '';
+        q('#model').value     = vehicle.model     || '';
+        q('#color').value     = vehicle.color     || '';
+        q('#plate').value     = vehicle.plate     || '';
+        q('#seats').value     = vehicle.seats     || '';
+        q('#photo_url').value = vehicle.photo_url || '';
+      } else {
+        ['#make','#model','#color','#plate','#seats','#photo_url'].forEach(sel => { if(q(sel)) q(sel).value=''; });
+      }
+
+      const activeSwitch = q('#activeSwitch');
+      activeSwitch.checked  = !!profile.active;
+      activeSwitch.disabled = !profile.approved;
+
+      const canSeeFeed = !!(profile.approved && profile.active);
+      if (feedCard){
+        const titleEl = feedCard.querySelector('.text-lg');
+        feedCard.classList.toggle('opacity-50', !canSeeFeed);
+        if (titleEl){
+          titleEl.innerHTML = canSeeFeed
+            ? 'Лента заказов'
+            : 'Лента заказов <span class="text-xs opacity-70">(доступна после одобрения и активации)</span>';
+        }
+      }
+      if (myTripsCard){
+        const titleEl = myTripsCard.querySelector('.text-lg');
+        myTripsCard.classList.toggle('opacity-50', !canSeeFeed);
+        if (titleEl){
+          titleEl.innerHTML = canSeeFeed
+            ? 'Мои поездки (я водитель)'
+            : 'Мои поездки (я водитель) <span class="text-xs opacity-70">(нужны одобрение и активность)</span>';
+        }
+      }
+      if (myHistCard){ myHistCard.classList.toggle('opacity-50', !canSeeFeed); }
+
+      ['#btnRefreshFeed', '#btnMyDriver', '#btnMyDriverHistory']
+        .forEach(sel => qs(sel).forEach(el => el.disabled = !canSeeFeed));
+
+    } catch (e){
+      st.textContent = 'Ошибка статуса: ' + (e.message || e);
+    }
+  }
+
+  q('#btnSubmitProfile').onclick = async ()=>{
+    const payload = {
+      full_name: q('#full_name').value,
+      phone: q('#phone').value,
+      license_number: q('#license_number').value,
+      license_valid_to: q('#license_valid_to').value,
+      notes: q('#notes').value,
+    };
+    try{
+      await api('/api/taxi/driver/profile', {method:'POST', body: JSON.stringify(payload)});
+      await loadDriver();
+      toast('Профиль отправлен на модерацию');
+    }catch(e){ toast(e.message||e, false); }
+  };
+
+  q('#btnSaveVehicle').onclick = async ()=>{
+    const payload = {
+      make: q('#make').value, model: q('#model').value, color: q('#color').value,
+      plate: q('#plate').value, seats: parseInt(q('#seats').value||'0',10)||null,
+      photo_url: q('#photo_url').value
+    };
+    try{
+      await api('/api/taxi/driver/vehicle', {method:'POST', body: JSON.stringify(payload)});
+      await loadDriver();
+      toast('Автомобиль сохранён');
+    }catch(e){ toast(e.message||e, false); }
+  };
+
+  q('#btnToggleActive').onclick = async ()=>{
+    try{
+      await api('/api/taxi/driver/active', {method:'POST', body: JSON.stringify({active: q('#activeSwitch').checked})});
+      await loadDriver();
+      toast('Статус обновлён');
+    }catch(e){ toast(e.message||e, false); }
+  };
+
+  // Лента: «Взять» только для client_sets
+  async function renderFeed(){
+    const box = q('#feed'); if(!box) return;
+    box.innerHTML = skeletonList(3);
+    try{
+      const {items} = await api('/api/taxi/trips?role=feed');
+      if(!items.length){ box.textContent='Нет новых заявок'; return; }
+      box.innerHTML = '';
+      for(const t of items){
+        const mode = (t.price_mode||'').toLowerCase();
+        const isFixed = mode === 'client_sets';
+        const div = document.createElement('div');
+        div.className='border rounded-2xl p-4 bg-white/70 dark:bg-slate-900/40';
+        div.innerHTML = `
+          <div class="font-semibold">#${t.id} • ${isFixed ? ((t.client_price||'?')+' ₽') : 'ставки водителей'}</div>
+          <div class="mt-1">От: ${T.fmtFrom(t)}</div>
+          <div>До: ${T.fmtTo(t)}</div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <input class="border rounded-xl p-2 w-28" data-bid-price placeholder="Моя цена" inputmode="numeric">
+            <button class="btn btn-accent" data-bid="${t.id}">Ставка</button>
+            ${isFixed ? `<button class="btn btn-secondary" data-accept="${t.id}">Взять</button>` : ``}
+          </div>
+        `;
+        box.appendChild(div);
+      }
+      qs('[data-accept]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-accept');
+          try{
+            await api(`/api/taxi/trips/${id}/accept`, {method:'POST', body: JSON.stringify({})});
+            await renderFeed(); await renderMyDriver(); await renderMyClient();
+            toast('Заказ принят');
+          }catch(e){ toast(e.message||e, false); }
+        };
+      });
+      qs('[data-bid]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-bid');
+          const priceInput = btn.parentElement.querySelector('[data-bid-price]');
+          const offered_price = priceInput && priceInput.value ? parseInt(priceInput.value,10) : 0;
+          if(!offered_price) return toast('Укажите цену', false);
+          try{
+            await api(`/api/taxi/trips/${id}/bids`, {method:'POST', body: JSON.stringify({offered_price})});
+            toast('Ставка отправлена');
+          }catch(e){ toast(e.message||e, false); }
+        };
+      });
+    }catch(e){ box.textContent = 'Ошибка: '+(e.message||e); }
+  }
+  q('#btnRefreshFeed').onclick = renderFeed;
+
+  // Мои как водитель
+  async function renderMyDriver(){
+    const box = q('#myDriverTrips'); if(!box) return;
+    box.innerHTML = skeletonList(2);
+    try{
+      const {items} = await api('/api/taxi/trips?role=driver');
+      const active = [], history = [];
+      for (const t of items){
+        (T.isActiveStatus(t.status) ? active : history).push(t);
+      }
+      box.innerHTML = active.length
+        ? active.map(t => renderDriverCard(t,false)).join('')
+        : 'Активных поездок нет';
+
+      const histCard = q('#driverHistoryCard');
+      const histBox  = q('#myDriverTripsHistory');
+      if (history.length){
+        show(histCard, true);
+        histBox.innerHTML = history.map(t => renderDriverCard(t,true)).join('');
+      } else {
+        show(histCard, false);
+        histBox.innerHTML = '';
+      }
+
+      bindDriverActions();
+    }catch(e){ box.textContent='Ошибка: '+(e.message||e); }
+  }
+  q('#btnMyDriver').onclick = renderMyDriver;
+  q('#btnMyDriverHistory').onclick = renderMyDriver;
+
+  function renderDriverCard(t, dim=false){
+    const st = (t.status||'').toLowerCase();
+    const canOnWay      = ['assigned'].includes(st);
+    const canInProgress = ['assigned','on_way'].includes(st);
+    const canComplete   = ['in_progress','on_way'].includes(st);
+    return `
+      <div class="border rounded-2xl p-4 bg-white/70 dark:bg-slate-900/40 ${dim?'opacity-60':''}">
+        <div class="font-semibold">#${t.id} • ${T.statusLabel(t.status)} • ${T.priceLabel(t)}</div>
+        <div class="mt-1">От: ${T.fmtFrom(t)}</div>
+        <div>До: ${T.fmtTo(t)}</div>
+        ${renderProgress(t)}
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="btn btn-info text-sm" data-status="${t.id}" data-to="on_way" ${!canOnWay?'disabled':''}>Еду к клиенту</button>
+          <button class="btn btn-info text-sm" data-status="${t.id}" data-to="in_progress" ${!canInProgress?'disabled':''}>В пути</button>
+          <button class="btn btn-secondary text-sm" data-status="${t.id}" data-to="completed" ${!canComplete?'disabled':''}>Завершить</button>
+          ${T.isActiveStatus(t.status) ? `<button class="btn btn-ghost text-sm" data-cancel="${t.id}">Отменить</button>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function bindDriverActions(){
+    qs('[data-status]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.getAttribute('data-status');
+        const status = btn.getAttribute('data-to'); // on_way | in_progress | completed
+        try{
+          await api(`/api/taxi/trips/${id}/status`, {method:'POST', body: JSON.stringify({status})});
+          await renderMyDriver(); await renderMyClient();
+          toast('Статус обновлён');
+        }catch(e){ toast(e.message||e, false); }
+      }
+    });
+    qs('[data-cancel]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.getAttribute('data-cancel');
+        try{
+          await api(`/api/taxi/trips/${id}/cancel`, {method:'POST'});
+          await renderMyDriver(); await renderMyClient();
+          toast('Заказ отменён');
+        }catch(e){ toast(e.message||e, false); }
+      }
+    });
+  }
+
+  // Реалтайм (SSE)
+  function startStream(){
+    if (!!window.EventSource) {
+      const es = new EventSource('/api/taxi/stream');
+      const refresh = debounce(()=>{
+        renderFeed(); renderMyClient(); renderMyDriver();
+      }, 250);
+      es.addEventListener('trip_created',  refresh);
+      es.addEventListener('bid_created',   refresh);
+      es.addEventListener('trip_assigned', refresh);
+      es.addEventListener('trip_updated',  refresh);
+      es.onerror = () => {};
+    } else {
+      setInterval(()=>{ renderFeed(); renderMyClient(); renderMyDriver(); }, 4000);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', startStream);
+
+  // helpers
+  function skeletonList(n=3){
+    return Array.from({length:n}).map(()=>`
+      <div class="animate-pulse border rounded-xl p-3 bg-white/50 dark:bg-slate-900/30">
+        <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3 mb-2"></div>
+        <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2 mb-1"></div>
+        <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
+      </div>
+    `).join('');
+  }
+  function debounce(fn, ms){
+    let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); };
+  }
+
+  // старт — клиент
+  show(q('#clientBlock'), true);
+  renderMyClient(); renderMyClientHistory();
+
+  // заглушка истории (можно расширить позже)
+  async function renderMyClientHistory(){ /* опционально */ }
+  async function renderMyDriverHistory(){ /* опционально */ }
+
+})();
+</script>
+{% endblock %}

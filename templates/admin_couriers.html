@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Админ — Курьеры{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+    <div class="text-xl font-bold">Админ-панель</div>
+
+    <!-- Вкладки -->
+    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+      <a href="/admin/drivers" class="btn btn-ghost flex-1 sm:flex-none text-sm px-3 py-2">Водители</a>
+      <a href="/admin/couriers" class="btn btn-secondary flex-1 sm:flex-none text-sm px-3 py-2">Курьеры</a>
+      <a href="/board/moderation" class="btn btn-ghost flex-1 sm:flex-none text-sm px-3 py-2">Объявления</a>
+    </div>
+
+    <a href="{{ back_href or '/dashboard' }}" class="btn btn-ghost text-sm px-3 py-2">← Назад</a>
+  </div>
+
+  <!-- Couriers moderation -->
+  <div class="card rounded-2xl p-4 sm:p-5 bg-white/70 dark:bg-slate-800/60">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+      <div class="text-base sm:text-lg font-bold">Профили курьеров на модерации</div>
+      <button id="btnRefreshCouriers" class="btn btn-ghost text-sm px-3 py-2">Обновить</button>
+    </div>
+    <div id="couriersBox" class="space-y-2 text-sm"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const q = s => document.querySelector(s);
+  const qs = s => Array.from(document.querySelectorAll(s));
+  const api = async (url, opts) => {
+    const r = await fetch(url, Object.assign({credentials:'include', headers:{'Content-Type':'application/json'}}, opts||{}));
+    let j=null; try{ j=await r.json(); }catch(_){ throw new Error('bad_json'); }
+    if(!r.ok || j.ok===false) throw new Error(j.detail || j.error || 'error');
+    return j;
+  };
+  const card = (html) => `<div class="border rounded-xl p-3 sm:p-4 bg-white/70 dark:bg-slate-900/40 break-words">${html}</div>`;
+
+  const fmtPhone = (p) => {
+    if(!p) return '—';
+    const clean = String(p).replace(/\s+/g,'');
+    return `<a class="underline" href="tel:${clean}">${p}</a>`;
+  };
+
+  async function refresh(){
+    const box = q('#couriersBox');
+    box.innerHTML = 'Загрузка...';
+    try{
+      const data = await api('/api/admin/couriers/pending');
+      const profiles = data.profiles || [];
+      box.innerHTML = profiles.length
+        ? profiles.map(p => card(`
+            <div class="font-semibold leading-tight">${p.full_name || '—'} <span class="opacity-60">#${p.user_id}</span></div>
+            <div class="text-xs opacity-70 mt-0.5">Телефон: ${fmtPhone(p.phone)}</div>
+            ${p.notes ? `<div class="text-xs opacity-70 mt-0.5">Заметки: ${p.notes}</div>` : ''}
+            <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button class="btn btn-secondary text-sm px-3 py-2" data-approve="${p.user_id}">Одобрить</button>
+              <button class="btn btn-ghost text-sm px-3 py-2" data-reject="${p.user_id}">Отклонить</button>
+            </div>
+          `)).join('')
+        : 'Нет профилей в очереди';
+
+      // actions
+      qs('[data-approve]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-approve');
+        if(!id) return;
+        await api(`/api/admin/couriers/${id}/approve`, {method:'POST'});
+        await refresh();
+      });
+      qs('[data-reject]').forEach(b => b.onclick = async ()=>{
+        const id = b.getAttribute('data-reject');
+        if(!id) return;
+        await api(`/api/admin/couriers/${id}/reject`, {method:'POST'});
+        await refresh();
+      });
+    }catch(e){
+      box.textContent = 'Ошибка: ' + (e.message || e);
+    }
+  }
+
+  q('#btnRefreshCouriers').onclick = refresh;
+  refresh();
+})();
+</script>
+{% endblock %}

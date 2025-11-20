@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Village{% endblock %}</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <meta name="color-scheme" content="light dark" />
+  <style>
+    .card { backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+    .btn { display:flex; align-items:center; gap:.75rem; border-radius:1rem; padding:1rem 1.25rem;
+           font-weight:600; font-size:1.05rem; justify-content:center; transition:transform .08s, box-shadow .2s, opacity .2s;
+           box-shadow:0 10px 20px rgba(0,0,0,.06); }
+    .btn:active { transform: translateY(1px) scale(.995); }
+    .btn-primary  { background:linear-gradient(135deg,#2563eb,#06b6d4); color:#fff; }
+    .btn-secondary{ background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; }
+    .btn-accent   { background:linear-gradient(135deg,#a855f7,#ec4899); color:#fff; }
+    .btn-info     { background:linear-gradient(135deg,#0ea5e9,#60a5fa); color:#fff; }
+    .btn-ghost    { background:transparent; border:1px solid rgba(100,116,139,.25); }
+    .avatar-ring  { box-shadow:0 10px 30px rgba(0,0,0,.12); }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900 dark:from-slate-900 dark:to-slate-950 dark:text-slate-100 min-h-screen">
+  <div class="max-w-md mx-auto p-6">
+
+    <!-- Верхняя панель -->
+    <div class="flex items-center justify-between mb-4">
+      {% if back_href %}
+        <a href="{{ back_href }}" class="btn btn-ghost py-2 px-3 rounded-xl text-sm">&larr; Назад</a>
+      {% else %}
+        <span></span>
+      {% endif %}
+
+      <div class="flex items-center gap-2">
+        <a id="adminBtn" href="/admin/drivers" class="btn btn-ghost py-2 px-3 rounded-xl text-sm hidden">Админ-панель</a>
+        <span class="text-sm opacity-70">Village</span>
+      </div>
+    </div>
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <script>
+    // Глобальное пространство имён
+    window.Village = window.Village || {};
+
+    (function () {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      const avatarEl = document.getElementById('avatar');       // может отсутствовать на странице — это ок
+      const nameEl   = document.getElementById('displayName');  // может отсутствовать — это ок
+      const adminBtn = document.getElementById('adminBtn');
+
+      function setName(text){ if(nameEl) nameEl.textContent = text; }
+      function setAvatar(src){
+        if(!avatarEl) return;
+        if(src){ avatarEl.src = src; avatarEl.classList.remove('opacity-0'); }
+        else { avatarEl.classList.add('opacity-0'); }
+      }
+
+      // если не в Telegram WebApp — считаем гостем
+      if (!tg || !(tg.initData || tg.initDataUnsafe)) {
+        setName('Гость'); setAvatar('');
+        return;
+      }
+
+      try { tg.ready(); tg.expand(); } catch(_) {}
+      if (tg.colorScheme === 'dark') document.documentElement.classList.add('dark');
+
+      // Имя/аватарка из initDataUnsafe (клиентская подстановка)
+      const u = (tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+      const fullName = [u.first_name||'', u.last_name||''].filter(Boolean).join(' ').trim();
+      const display = fullName || (u.username ? '@'+u.username : (u.id ? 'ID '+u.id : 'Пользователь'));
+      setName(display);
+      setAvatar(u.photo_url || '');
+      window.Village.user = u;
+
+      // Создаём серверную сессию (проверка подписи и установка cookie)
+      const body = new URLSearchParams({ init_data: tg.initData || '' });
+      fetch('/api/tg/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body,
+        credentials: 'include',
+      }).catch(() => {});
+
+      // Обёртка fetch: всегда передаём X-Tg-Init-Data (подстраховка) и куки
+      const _fetch = window.fetch.bind(window);
+      window.fetch = function(input, init) {
+        init = init || {};
+        init.headers = init.headers || {};
+        if (!init.headers['X-Tg-Init-Data'] && (tg && tg.initData)) {
+          init.headers['X-Tg-Init-Data'] = tg.initData;
+        }
+        if (init.credentials === undefined) init.credentials = 'include';
+        return _fetch(input, init);
+      };
+
+      // Проверяем, админ ли пользователь — показываем кнопку
+      fetch('/api/is_admin', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : { ok:false })
+        .then(j => { if (j && j.ok && j.is_admin && adminBtn) adminBtn.classList.remove('hidden'); })
+        .catch(() => {});
+    })();
+  </script>
+</body>
+</html>

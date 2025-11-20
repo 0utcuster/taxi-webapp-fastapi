@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Информация{% endblock %}
+{% set back_href = '/dashboard' %}
+{% block content %}
+  <div class="card bg-white/80 dark:bg-white/5 rounded-3xl p-6 text-center">
+    <div class="w-20 h-20 mx-auto mb-2 rounded-full bg-white/70 dark:bg-white/10 flex items-center justify-center text-3xl">ℹ️</div>
+    <h1 class="text-xl font-bold mb-4">Полезные контакты</h1>
+
+    <div class="grid grid-cols-1 gap-2 text-left">
+      <a href="tel:103" class="btn btn-ghost">🚑 Скорая: 103</a>
+      <a href="tel:102" class="btn btn-ghost">🚔 Полиция: 102</a>
+      <a href="tel:101" class="btn btn-ghost">🔥 МЧС/Пожарные: 101</a>
+      <a href="#" class="btn btn-ghost">🚌 Расписание автобусов</a>
+      <a href="#" class="btn btn-ghost">🏥 Больница / регистратура</a>
+      <a href="#" class="btn btn-ghost">🏛️ Паспортный стол</a>
+    </div>
+  </div>
+{% endblock %}
