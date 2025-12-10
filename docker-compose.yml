@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  webapp:
+    build: .
+    container_name: taxi_webapp
+    restart: unless-stopped
+    ports:
+      - "8181:8181"    # пробрасываем порт наружу
+    volumes:
+      - ./app.db:/app/app.db
+      - ./static:/app/static
+      - ./templates:/app/templates
+      - .env:/app/.env
